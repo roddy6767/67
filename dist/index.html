@@ -1,0 +1,168 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#101b1d" />
+  <title>自主學習67 — 飛行模擬</title>
+  <script type="module" crossorigin src="/assets/main-BLOiS-1S.js"></script>
+  <link rel="modulepreload" crossorigin href="/assets/modulepreload-polyfill-B5Qt9EMX.js">
+  <link rel="stylesheet" crossorigin href="/assets/main-DPINeXrJ.css">
+</head>
+<body class="menu-active">
+  <div class="app-shell">
+    <!-- Shared header: project identity, status, home action, and mode switch. -->
+    <header class="topbar">
+      <a class="brand" href="#home" aria-label="自主學習67 主選單">
+        <span class="brand-mark" aria-hidden="true"><i></i><i></i><i></i></span>
+        <span class="brand-name">自主學習67</span>
+        <span class="brand-divider"></span>
+        <span class="brand-sub">飛行動力學</span>
+      </a>
+      <div class="topbar-right">
+        <div class="live-status"><span class="status-dot"></span><span id="connection-label">系統就緒</span></div>
+        <a class="controller-nav" href="controller.html">手機控制器</a>
+        <button class="home-icon-button" id="home-button" type="button" aria-label="回主頁" title="回主頁">⌂</button>
+        <button class="mode-switch-button" id="mode-switch" aria-label="切換操作模式"><span id="mode-switch-label">Play</span><span aria-hidden="true">↗</span></button>
+      </div>
+    </header>
+
+    <main>
+      <!-- Mode selection and difficulty controls shown before entering a simulation. -->
+      <section class="home-view" id="home-view">
+        <div class="home-menu" aria-label="選擇模式">
+          <button class="menu-choice" id="instruction-button">Instruction</button>
+          <button class="menu-choice" id="play-button">Play</button>
+        </div>
+        <fieldset class="difficulty-picker" id="difficulty-picker">
+          <legend>Play 難度</legend>
+          <button type="button" data-difficulty="easy" aria-pressed="false">簡易</button>
+          <button type="button" data-difficulty="standard" aria-pressed="true">標準</button>
+        </fieldset>
+      </section>
+
+      <!-- Simulation workspace: lesson navigation, scene canvas, and instruments. -->
+      <section class="sim-view is-hidden" id="sim-view">
+        <div class="sim-heading">
+          <div><div class="eyebrow"><span class="eyebrow-line"></span><span id="mode-kicker">飛行學院 / 教學模式</span></div><h2 id="scene-heading">跑道已就緒。</h2></div>
+        </div>
+        <div class="sim-layout">
+          <aside class="lesson-rail" id="lesson-rail">
+            <div class="rail-label">飛行流程</div>
+            <button class="lesson-step" data-scene="taxi"><span class="step-key">1</span><span><strong>滑行</strong><small>跑道滑行</small></span><span class="step-mark"></span></button>
+            <button class="lesson-step" data-scene="takeoff"><span class="step-key">2</span><span><strong>起飛</strong><small>起飛與襟翼</small></span><span class="step-mark"></span></button>
+            <button class="lesson-step" data-scene="cruise"><span class="step-key">3</span><span><strong>平飛</strong><small>四力平衡</small></span><span class="step-mark"></span></button>
+            <button class="lesson-step" data-scene="landing"><span class="step-key">4</span><span><strong>降落</strong><small>進場與著陸</small></span><span class="step-mark"></span></button>
+            <button class="lesson-step" data-scene="turn"><span class="step-key">5</span><span><strong>轉彎</strong><small>坡度與航向</small></span><span class="step-mark"></span></button>
+            <div class="rail-separator"></div>
+            <button class="lesson-step" data-scene="engine"><span class="step-key">E</span><span><strong>引擎</strong><small>渦輪剖面</small></span><span class="step-mark"></span></button>
+            <button class="lesson-step" data-scene="wing"><span class="step-key">W</span><span><strong>翼型</strong><small>機翼與氣流</small></span><span class="step-mark"></span></button>
+            <button class="lesson-step" data-scene="aoa"><span class="step-key">A</span><span><strong>迎角</strong><small>升力與失速</small></span><span class="step-mark"></span></button>
+            <button class="lesson-step" data-scene="slats"><span class="step-key">S</span><span><strong>前緣縫翼</strong><small>延緩氣流分離</small></span><span class="step-mark"></span></button>
+            <button class="lesson-step" data-scene="elevator"><span class="step-key">V</span><span><strong>升降舵</strong><small>控制飛機俯仰</small></span><span class="step-mark"></span></button>
+            <div class="rail-note"><span class="note-marker"></span><span>按鍵切換章節<br /><b>1 / 2 / 3 / 4 / 5 / E / W / A / S / V</b></span></div>
+          </aside>
+          <section class="stage-panel">
+            <div class="stage-topline"><span><span class="stage-live-dot"></span><span id="stage-label">01 / 滑行</span></span><span id="stage-coordinates">跑道 05L&nbsp; · &nbsp;TPE</span><button id="fullscreen-button" class="stage-icon-button" aria-label="切換全螢幕" title="切換全螢幕">⛶</button></div>
+            <div class="scene" id="scene-root" aria-live="polite"></div>
+            <div class="stage-footer"><span id="scene-caption">滑行至起飛點，準備進入跑道。</span><span id="scene-progress">01 <i></i> 04</span></div>
+          </section>
+          <aside class="instrument-panel" id="instrument-panel"></aside>
+        </div>
+        <div class="sim-bottom"><span>飛行模擬</span><span id="bottom-hint">下一階段&nbsp; <b>2</b>&nbsp; 起飛</span><span>僅供模擬</span></div>
+      </section>
+    </main>
+    <!-- Optional lesson overlays; app.js shows each one only in its matching scene. -->
+    <aside class="bernoulli-panel is-hidden" id="bernoulli-panel" aria-label="白努利定律實驗">
+      <div class="bernoulli-copy">
+        <span class="bernoulli-kicker">WING / AIRFLOW</span>
+        <strong>白努利定律</strong>
+        <span>氣流分別沿著翼型上下表面流動。上方流速較快、壓力較低，形成向上的升力。</span>
+      </div>
+      <svg class="bernoulli-demo" viewBox="0 0 360 200" role="img" aria-label="氣流從機翼前緣分流，沿上表面與下表面流動後於後緣匯合">
+        <defs>
+          <marker id="bernoulli-upper-arrow" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto">
+            <path d="M0 0 6 3 0 6Z" fill="#c6f4ff"/>
+          </marker>
+          <marker id="bernoulli-lower-arrow" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto">
+            <path d="M0 0 6 3 0 6Z" fill="#e9c88d"/>
+          </marker>
+        </defs>
+        <path class="demo-flow fast" marker-end="url(#bernoulli-upper-arrow)" d="M18 72 H86 C111 36 179 31 229 55 C257 69 281 77 342 78"/>
+        <path class="demo-flow fast secondary" marker-end="url(#bernoulli-upper-arrow)" d="M18 93 H84 C118 58 178 52 224 69 C260 82 287 87 342 88"/>
+        <path class="demo-flow slow" marker-end="url(#bernoulli-lower-arrow)" d="M18 111 H86 C125 126 186 130 232 111 C269 97 296 96 342 96"/>
+        <path class="demo-flow slow secondary" marker-end="url(#bernoulli-lower-arrow)" d="M18 132 H86 C122 145 185 148 237 119 C274 104 300 102 342 102"/>
+        <path class="demo-wing" d="M86 100 C119 63 176 61 258 94 C204 103 141 109 86 100Z"/>
+        <path class="demo-lift" d="M171 89V31 M162 42l9-11 9 11"/>
+        <text class="demo-label" x="202" y="34">升力</text>
+      </svg>
+      <div class="bernoulli-legend" aria-label="氣流圖例">
+        <span><i class="legend-fast"></i>上表面　較快 / 低壓</span>
+        <span><i class="legend-slow"></i>下表面　較慢</span>
+      </div>
+      <div class="bernoulli-hint"><span>拖曳畫面可轉動視角</span><kbd>Q</kbd><span>返回</span></div>
+    </aside>
+    <aside class="aoa-panel is-hidden" id="aoa-panel" aria-label="迎角互動儀表">
+      <div class="aoa-heading"><h3>迎角</h3><small>機翼弦線與相對風的夾角</small></div>
+      <div class="aoa-legend"><span><i class="aoa-chord-swatch" aria-hidden="true"></i>弦線</span><span><i class="aoa-wind-swatch" aria-hidden="true"></i>相對風</span></div>
+      <label class="aoa-control-label" for="aoa-range"><span>弦線與相對風的夾角</span><output id="aoa-output" for="aoa-range">4°</output></label>
+      <input id="aoa-range" type="range" min="-5" max="25" step="1" value="4" aria-label="調整迎角" />
+      <div class="aoa-range-labels"><span>−5°</span><span>15° 臨界迎角</span><span>25°</span></div>
+      <div class="aoa-metrics">
+        <div class="aoa-lift-reading"><div><span>升力指數</span><strong id="aoa-lift-value">41%</strong></div><div class="aoa-lift-track" id="aoa-lift-track" role="meter" aria-label="相對升力指數" aria-valuemin="0" aria-valuemax="100" aria-valuenow="41"><span id="aoa-lift-bar" style="width:41%"></span></div></div>
+        <div class="aoa-stall-reading"><span>氣流狀態</span><strong id="aoa-stall-state">氣流貼附</strong></div>
+      </div>
+      <p class="aoa-note"></p>
+      <button class="aoa-return" id="aoa-return" type="button" aria-label="返回上一章，也可按 Q">↩ 返回 <kbd>Q</kbd></button>
+    </aside>
+    <aside class="controls-help is-hidden" id="controls-help" aria-label="操作快捷鍵"></aside>
+    <aside class="lesson-transport is-hidden" id="lesson-transport" aria-label="教學播放控制">
+      <button type="button" id="lesson-replay" aria-label="重播本課">↺ 重播</button>
+      <button type="button" id="lesson-pause" aria-label="暫停教學">Ⅱ 暫停</button>
+      <label for="lesson-speed">速度</label>
+      <select id="lesson-speed" aria-label="教學播放速度">
+        <option value="0.5">0.5×</option>
+        <option value="1" selected>1×</option>
+        <option value="1.5">1.5×</option>
+      </select>
+    </aside>
+    <aside class="cruise-panel is-hidden" id="cruise-panel" aria-label="平飛四力平衡" aria-hidden="true">
+      <div class="lesson-panel-heading"><span>03 / 平飛</span><h3>平飛四力平衡</h3><small>定速平飛</small></div>
+      <svg class="force-diagram" viewBox="0 0 280 230" role="img" aria-label="平飛時升力向上等於向下重力，向前推力等於向後阻力">
+        <defs>
+          <marker id="force-lift-head" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto"><path d="M0 0L6 3L0 6Z" fill="#c6f4ff"/></marker>
+          <marker id="force-weight-head" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto"><path d="M0 0L6 3L0 6Z" fill="#ffd0ab"/></marker>
+          <marker id="force-thrust-head" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto"><path d="M0 0L6 3L0 6Z" fill="#b9e8d2"/></marker>
+          <marker id="force-drag-head" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto"><path d="M0 0L6 3L0 6Z" fill="#f2a283"/></marker>
+        </defs>
+        <path class="force-vector lift" d="M140 93V30" marker-end="url(#force-lift-head)"/><path class="force-vector weight" d="M140 127V190" marker-end="url(#force-weight-head)"/>
+        <path class="force-vector drag" d="M116 110H48" marker-end="url(#force-drag-head)"/><path class="force-vector thrust" d="M164 110H232" marker-end="url(#force-thrust-head)"/>
+        <path class="force-aircraft" transform="rotate(90 140 110)" d="M140 81L147 104L190 111L193 117L147 115L142 139L150 148L148 152L140 148L132 152L130 148L138 139L133 115L87 117L90 111L133 104Z"/>
+        <text x="140" y="21" text-anchor="middle">升力</text><text x="140" y="216" text-anchor="middle">重力</text>
+        <text x="45" y="96" text-anchor="middle">阻力</text><text x="236" y="96" text-anchor="middle">推力</text>
+      </svg>
+      <div class="force-equations"><strong>升力 = 重力</strong><strong>推力 = 阻力</strong></div>
+      <p class="lesson-panel-note">垂直合力為零，飛機維持等高；水平合力為零，飛機維持定速。</p>
+    </aside>
+    <aside class="landing-panel is-hidden" id="landing-panel" aria-label="降落操作與動畫進度">
+      <div class="lesson-panel-heading"><span>飛行流程 / 04</span><h3>進場與降落</h3><small id="landing-phase-label" role="status" aria-live="polite">收油門</small></div>
+      <div class="landing-gauges">
+        <div><span>油門</span><strong id="landing-throttle">62%</strong></div>
+        <div><span>角度</span><strong id="landing-glide">3.0°</strong></div>
+      </div>
+      <div class="landing-control-state landing-flaps-state"><span>襟翼</span><strong id="landing-flaps">收起</strong><i id="landing-flap-meter"></i></div>
+      <div class="landing-control-state landing-spoilers-state"><span>擾流板</span><strong id="landing-spoilers">待命</strong><i id="landing-spoiler-meter"></i></div>
+      <ol class="landing-timeline" id="landing-timeline">
+        <li data-phase="gear"><span>01</span><strong>放下起落架</strong><small>主輪與前輪伸出</small></li>
+        <li data-phase="throttle"><span>02</span><strong>收油門</strong><small>降低推力</small></li>
+        <li data-phase="flaps"><span>03</span><strong>放襟翼</strong><small>增加低速升力與阻力</small></li>
+        <li data-phase="glide"><span>04</span><strong>下滑道</strong><small>約 3° 穩定下降</small></li>
+        <li data-phase="flare"><span>05</span><strong>拉平觸地</strong><small>機身抬頭，輪胎接地</small></li>
+        <li data-phase="spoilers"><span>06</span><strong>擾流板</strong><small>破壞升力並協助減速</small></li>
+      </ol>
+      <div class="landing-progress"><span id="landing-progress-bar"></span></div>
+    </aside>
+    <div class="toast" id="toast" role="status" aria-live="polite"></div>
+  </div>
+</body>
+</html>

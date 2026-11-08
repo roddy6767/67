@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#101b1d" />
+  <title>平板飛行控制器 — 自主學習67</title>
+  <link rel="stylesheet" href="controller.css" />
+  <script type="module" src="controller.js"></script>
+</head>
+<body>
+  <div class="controller-shell">
+    <header class="controller-header">
+      <a class="controller-brand" href="./">飛行控制</a>
+      <span class="connection-badge" id="connection-status" role="status">尚未連線</span>
+    </header>
+
+    <main>
+      <section class="controller-card" aria-label="平板飛行控制器">
+        <h1 id="page-title">姿態控制</h1>
+        <div class="tilt-readings" aria-label="目前方向數值">
+          <div class="axis-reading">
+            <span>上下</span>
+            <strong id="pitch-value">0.00</strong>
+            <div class="meter" aria-hidden="true"><i id="pitch-meter"></i></div>
+          </div>
+          <div class="axis-reading">
+            <span>左右</span>
+            <strong id="roll-value">0.00</strong>
+            <div class="meter" aria-hidden="true"><i id="roll-meter"></i></div>
+          </div>
+        </div>
+
+        <div class="tilt-pad" id="tilt-pad" role="group" aria-label="滑動控制方向">
+          <span class="tilt-crosshair"></span>
+          <span class="tilt-indicator" id="tilt-indicator"></span>
+          <span class="direction-label direction-up">上</span>
+          <span class="direction-label direction-down">下</span>
+          <span class="direction-label direction-left">左</span>
+          <span class="direction-label direction-right">右</span>
+        </div>
+
+        <button class="boost-button" id="boost-button" type="button" aria-pressed="false">
+          <strong>長按加速</strong>
+        </button>
+
+        <div class="control-actions">
+          <button class="action-button" id="sensor-button" type="button">啟用感測</button>
+          <button class="action-button" id="calibrate-button" type="button" disabled>校正中心</button>
+        </div>
+        <p class="sensor-message" id="sensor-message" role="status">啟用感測後，傾斜平板控制方向。</p>
+      </section>
+
+      <details class="connection-card">
+        <summary>連線設定</summary>
+        <div class="connection-fields">
+          <input id="websocket-url" type="url" aria-label="WebSocket 位址" inputmode="url" autocomplete="url" spellcheck="false" />
+          <button class="connect-button" id="connect-button" type="button">連線</button>
+        </div>
+      </details>
+    </main>
+  </div>
+</body>
+</html>

@@ -1,0 +1,19 @@
+{
+  "name": "skylab-flight-dynamics",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite --open",
+    "build": "vite build",
+    "preview": "vite preview",
+    "receiver": "node receiver.js"
+  },
+  "devDependencies": {
+    "vite": "^7.0.0"
+  },
+  "dependencies": {
+    "three": "^0.186.1",
+    "ws": "^8.22.2"
+  }
+}
