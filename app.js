@@ -14,6 +14,13 @@ const difficultyPicker = $('#difficulty-picker');
 const toast = $('#toast');
 const playInput = { pitch: 0, roll: 0, throttle: 0 };
 window.playInput = playInput;
+const keyboardInput = { pitch: 0, roll: 0, throttle: 0 };
+const remoteInput = { pitch: 0, roll: 0, boost: false, lastMessageAt: 0, connected: false };
+const tabletDialog = $('#tablet-dialog');
+const gameSocketUrl = $('#game-websocket-url');
+const gameConnectionStatus = $('#game-connection-status');
+let gameSocket = null;
+let gameRoom = '';
 const instructionInput = { pitch: 0, roll: 0, rudder: 0, spoilers: 0, reverser: 0 };
 function clearInstructionInput() {
   Object.assign(instructionInput, { pitch: 0, roll: 0, rudder: 0, spoilers: 0, reverser: 0 });
@@ -38,6 +45,168 @@ let toastTimer;
 let returnScene = 'idle';
 let taxiStartTime = performance.now();
 let taxiElapsed = 0;
+
+function createRoomCode() {
+  const bytes = crypto.getRandomValues(new Uint8Array(6));
+  return Array.from(bytes, (byte) => byte.toString(16).padStart(2, '0')).join('');
+}
+
+function applyPlayInput() {
+  const remoteIsFresh = remoteInput.connected && performance.now() - remoteInput.lastMessageAt < 350;
+  playInput.pitch = remoteIsFresh ? remoteInput.pitch : keyboardInput.pitch;
+  playInput.roll = remoteIsFresh ? remoteInput.roll : keyboardInput.roll;
+  playInput.throttle = remoteIsFresh ? (remoteInput.boost ? 1 : 0) : keyboardInput.throttle;
+  if (!remoteIsFresh && remoteInput.connected) {
+    remoteInput.connected = false;
+    updateGameConnectionStatus('平板訊號中斷');
+    return true;
+  }
+  return false;
+}
+
+function resetRemoteInput() {
+  Object.assign(remoteInput, { pitch: 0, roll: 0, boost: false, lastMessageAt: 0, connected: false });
+  Object.assign(keyboardInput, { pitch: 0, roll: 0, throttle: 0 });
+  applyPlayInput();
+}
+
+function updateGameConnectionStatus(message, connected = false) {
+  gameConnectionStatus.textContent = message;
+  gameConnectionStatus.classList.toggle('is-connected', connected);
+  const navButton = $('#tablet-connect-button');
+  navButton.textContent = connected ? '平板已連線' : '連接平板';
+  navButton.classList.toggle('is-connected', connected);
+}
+
+function updateTabletPairingLink() {
+  const url = gameSocketUrl.value.trim();
+  const pairing = $('#tablet-pairing');
+  if (!url || !gameRoom) {
+    pairing.classList.add('is-hidden');
+    return;
+  }
+  try {
+    const wsUrl = new URL(url);
+    if (!['ws:', 'wss:'].includes(wsUrl.protocol)) throw new Error('網址需使用 ws:// 或 wss://');
+    const controllerUrl = new URL('controller.html', window.location.href);
+    controllerUrl.searchParams.set('room', gameRoom);
+    controllerUrl.searchParams.set('ws', wsUrl.href);
+    $('#tablet-pairing-code').textContent = gameRoom;
+    $('#tablet-pairing-link').value = controllerUrl.href;
+    pairing.classList.remove('is-hidden');
+  } catch {
+    pairing.classList.add('is-hidden');
+  }
+}
+
+function openTabletDialog() {
+  if (!gameRoom) gameRoom = createRoomCode();
+  if (location.protocol === 'https:' && !gameSocketUrl.value.trim()) {
+    gameConnectionStatus.textContent = '先部署安全的 WebSocket 接收端，再填入 wss:// 位址';
+  }
+  updateTabletPairingLink();
+  if (!tabletDialog.open) tabletDialog.showModal();
+}
+
+function closeGameSocket() {
+  if (gameSocket) {
+    const socket = gameSocket;
+    gameSocket = null;
+    socket.close(1000, 'Play ended');
+  }
+  resetRemoteInput();
+  updateGameConnectionStatus('尚未連線');
+}
+
+function connectGameSocket() {
+  if (gameSocket && [WebSocket.CONNECTING, WebSocket.OPEN].includes(gameSocket.readyState)) {
+    gameSocket.close(1000, 'Reconnect requested');
+    gameSocket = null;
+  }
+
+  let url;
+  try {
+    url = new URL(gameSocketUrl.value.trim());
+    if (!['ws:', 'wss:'].includes(url.protocol)) throw new Error('請輸入 ws:// 或 wss:// 位址');
+    if (window.location.protocol === 'https:' && url.protocol !== 'wss:') {
+      throw new Error('HTTPS 網頁必須連接 wss:// 安全伺服器');
+    }
+  } catch (error) {
+    updateGameConnectionStatus(error.message);
+    return;
+  }
+
+  if (!gameRoom) gameRoom = createRoomCode();
+  localStorage.setItem('tablet-websocket-url', url.href);
+  updateTabletPairingLink();
+  updateGameConnectionStatus('連線中…');
+  const socket = new WebSocket(url);
+  gameSocket = socket;
+  socket.addEventListener('open', () => {
+    if (gameSocket !== socket) return;
+    socket.send(JSON.stringify({ type: 'join', role: 'game', room: gameRoom }));
+    updateGameConnectionStatus('已連線，等待平板');
+  });
+  socket.addEventListener('message', (event) => {
+    if (gameSocket !== socket) return;
+    let message;
+    try {
+      message = JSON.parse(event.data);
+    } catch (error) {
+      updateGameConnectionStatus(`伺服器訊息錯誤：${error.message}`);
+      return;
+    }
+    if (message.type === 'peer' && message.role === 'controller') {
+      if (!message.connected) {
+        remoteInput.connected = false;
+        remoteInput.pitch = 0;
+        remoteInput.roll = 0;
+        remoteInput.boost = false;
+      }
+      updateGameConnectionStatus(message.connected ? '平板已連線' : '等待平板', message.connected);
+      applyPlayInput();
+      if (mode === 'play') renderScene();
+      return;
+    }
+    if (message.type === 'control' && Number.isFinite(message.pitch) && Number.isFinite(message.roll)) {
+      Object.assign(remoteInput, {
+        pitch: message.pitch,
+        roll: message.roll,
+        boost: message.boost === true,
+        lastMessageAt: performance.now(),
+        connected: true
+      });
+      applyPlayInput();
+    }
+  });
+  socket.addEventListener('error', () => {
+    if (gameSocket === socket) updateGameConnectionStatus('連線失敗，檢查伺服器網址');
+  });
+  socket.addEventListener('close', () => {
+    if (gameSocket !== socket) return;
+    gameSocket = null;
+    resetRemoteInput();
+    updateGameConnectionStatus('連線中斷');
+  });
+}
+
+gameSocketUrl.value = localStorage.getItem('tablet-websocket-url')
+  || (location.protocol === 'http:' ? `ws://${location.hostname}:8081` : '');
+
+$('#tablet-connect-button').addEventListener('click', openTabletDialog);
+$('#game-connect-button').addEventListener('click', connectGameSocket);
+gameSocketUrl.addEventListener('input', updateTabletPairingLink);
+$('#copy-tablet-link').addEventListener('click', async () => {
+  try {
+    await navigator.clipboard.writeText($('#tablet-pairing-link').value);
+    showToast('平板連結已複製');
+  } catch (error) {
+    updateGameConnectionStatus(`無法複製連結：${error.message}`);
+  }
+});
+setInterval(() => {
+  applyPlayInput();
+}, 100);
 
 const sceneNames = {
   idle: { title: '跑道已就緒。', label: '待命', caption: '按 1 開始滑行。', coords: '跑道 05L  ·  TPE', hint: '按 1 開始滑行' },
@@ -369,6 +538,7 @@ function setScene(nextScene) {
 }
 
 function startMode(nextMode) {
+  if (mode === 'play' && nextMode !== 'play') closeGameSocket();
   mode = nextMode;
   sceneHistory.length = 0;
   const shortcuts = nextMode === 'instruction'
@@ -400,9 +570,7 @@ function startMode(nextMode) {
   $('#landing-panel').classList.add('is-hidden');
   document.body.classList.remove('menu-active');
   clearInstructionInput();
-  playInput.pitch = 0;
-  playInput.roll = 0;
-  playInput.throttle = 0;
+  resetRemoteInput();
   $('#mode-kicker').textContent = nextMode === 'instruction' ? '飛行學院 / Instruction' : '飛行學院 / Play';
   $('#mode-switch-label').textContent = nextMode === 'instruction' ? 'Play' : 'Instruction';
   $('#connection-label').textContent = nextMode === 'instruction' ? '課程進行中' : '飛行進行中';
@@ -410,10 +578,16 @@ function startMode(nextMode) {
   setScene(nextMode === 'instruction' ? 'idle' : 'flight');
   suppressSceneHistory = false;
   difficultyPicker.classList.toggle('is-hidden', nextMode !== 'play');
+  if (nextMode === 'play') {
+    gameRoom = createRoomCode();
+    openTabletDialog();
+    if (gameSocketUrl.value.trim()) connectGameSocket();
+  }
   showToast(nextMode === 'instruction' ? '教學模式已啟動 · 1–5 / E / W / A / S / V / R 切換 · Q 返回 · Esc 離開' : '自由飛行已啟動 · Shift/Ctrl 油門，W/S 俯仰，A/D 滾轉，空白鍵重啟');
 }
 
 function backHome() {
+  closeGameSocket();
   homeView.classList.remove('is-hidden');
   simView.classList.add('is-hidden');
   controlsHelp.classList.add('is-hidden');
@@ -426,9 +600,7 @@ function backHome() {
   $('#landing-panel').classList.add('is-hidden');
   document.body.classList.add('menu-active');
   clearInstructionInput();
-  playInput.pitch = 0;
-  playInput.roll = 0;
-  playInput.throttle = 0;
+  resetRemoteInput();
   $('#connection-label').textContent = '系統就緒';
   document.body.classList.remove('paused');
   document.body.classList.remove('lesson-paused');
@@ -459,6 +631,9 @@ function resetFlight() {
 $('#instruction-button').addEventListener('click', () => startMode('instruction'));
 $('#play-button').addEventListener('click', () => startMode('play'));
 $('#home-button').addEventListener('click', backHome);
+tabletDialog.addEventListener('click', (event) => {
+  if (event.target === tabletDialog) tabletDialog.close();
+});
 $('#mode-switch').addEventListener('click', () => startMode(mode === 'instruction' ? 'play' : 'instruction'));
 $('#lesson-replay').addEventListener('click', () => {
   lessonPaused = false;
@@ -547,9 +722,8 @@ window.addEventListener('keydown', (event) => {
     }
     if (event.code === 'Space') {
       event.preventDefault();
-      playInput.pitch = 0;
-      playInput.roll = 0;
-      playInput.throttle = 0;
+      Object.assign(keyboardInput, { pitch: 0, roll: 0, throttle: 0 });
+      resetRemoteInput();
       paused = false;
       document.body.classList.remove('paused');
       flightScene.restartPlay();
@@ -558,17 +732,18 @@ window.addEventListener('keydown', (event) => {
       return;
     }
     const key = event.key.toLowerCase();
-    if (key === 'w' || key === 'arrowup') playInput.pitch = 1;
-    else if (key === 's' || key === 'arrowdown') playInput.pitch = -1;
-    else if (key === 'a' || key === 'arrowleft') playInput.roll = -1;
-    else if (key === 'd' || key === 'arrowright') playInput.roll = 1;
-    else if (key === 'shift') playInput.throttle = 1;
-    else if (key === 'control') playInput.throttle = -1;
-    else if (event.code === 'Numpad8') playInput.pitch = 1;
-    else if (event.code === 'Numpad2') playInput.pitch = -1;
-    else if (event.code === 'Numpad4') playInput.roll = -1;
-    else if (event.code === 'Numpad6') playInput.roll = 1;
+    if (key === 'w' || key === 'arrowup') keyboardInput.pitch = 1;
+    else if (key === 's' || key === 'arrowdown') keyboardInput.pitch = -1;
+    else if (key === 'a' || key === 'arrowleft') keyboardInput.roll = -1;
+    else if (key === 'd' || key === 'arrowright') keyboardInput.roll = 1;
+    else if (key === 'shift') keyboardInput.throttle = 1;
+    else if (key === 'control') keyboardInput.throttle = -1;
+    else if (event.code === 'Numpad8') keyboardInput.pitch = 1;
+    else if (event.code === 'Numpad2') keyboardInput.pitch = -1;
+    else if (event.code === 'Numpad4') keyboardInput.roll = -1;
+    else if (event.code === 'Numpad6') keyboardInput.roll = 1;
     else return;
+    applyPlayInput();
     if (key === 'control' || key.startsWith('arrow')) event.preventDefault();
     renderScene();
   }
@@ -577,16 +752,18 @@ window.addEventListener('keydown', (event) => {
 window.addEventListener('keyup', (event) => {
   const key = event.key.toLowerCase();
   if (mode !== 'play') return;
-  if ((key === 'w' || key === 'arrowup') && playInput.pitch === 1) playInput.pitch = 0;
-  else if ((key === 's' || key === 'arrowdown') && playInput.pitch === -1) playInput.pitch = 0;
-  else if ((key === 'a' || key === 'arrowleft') && playInput.roll === -1) playInput.roll = 0;
-  else if ((key === 'd' || key === 'arrowright') && playInput.roll === 1) playInput.roll = 0;
-  else if (key === 'shift' && playInput.throttle === 1) playInput.throttle = 0;
-  else if (key === 'control' && playInput.throttle === -1) playInput.throttle = 0;
-  else if (event.code === 'Numpad8' && playInput.pitch === 1) playInput.pitch = 0;
-  else if (event.code === 'Numpad2' && playInput.pitch === -1) playInput.pitch = 0;
-  else if (event.code === 'Numpad4' && playInput.roll === -1) playInput.roll = 0;
-  else if (event.code === 'Numpad6' && playInput.roll === 1) playInput.roll = 0;
+  if ((key === 'w' || key === 'arrowup') && keyboardInput.pitch === 1) keyboardInput.pitch = 0;
+  else if ((key === 's' || key === 'arrowdown') && keyboardInput.pitch === -1) keyboardInput.pitch = 0;
+  else if ((key === 'a' || key === 'arrowleft') && keyboardInput.roll === -1) keyboardInput.roll = 0;
+  else if ((key === 'd' || key === 'arrowright') && keyboardInput.roll === 1) keyboardInput.roll = 0;
+  else if (key === 'shift' && keyboardInput.throttle === 1) keyboardInput.throttle = 0;
+  else if (key === 'control' && keyboardInput.throttle === -1) keyboardInput.throttle = 0;
+  else if (event.code === 'Numpad8' && keyboardInput.pitch === 1) keyboardInput.pitch = 0;
+  else if (event.code === 'Numpad2' && keyboardInput.pitch === -1) keyboardInput.pitch = 0;
+  else if (event.code === 'Numpad4' && keyboardInput.roll === -1) keyboardInput.roll = 0;
+  else if (event.code === 'Numpad6' && keyboardInput.roll === 1) keyboardInput.roll = 0;
+  applyPlayInput();
+  renderScene();
 });
 
 document.querySelectorAll('button').forEach((button) => button.addEventListener('click', () => {

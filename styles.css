@@ -346,3 +346,23 @@ body.instruction-mode.zoom-wing .controls-help,body.instruction-mode.zoom-wing .
 }
 @media(min-width:601px){.controller-nav{color:#b9d2c2;font:10px var(--mono);text-decoration:none}.controller-nav:hover{color:#f2a283}}
 @media(max-width:600px){.controller-nav{color:#b9d2c2;font:8px var(--mono);text-decoration:none}.topbar-right{gap:10px}}
+.tablet-connect-button{min-height:34px;padding:0 12px;border:1px solid rgba(220,232,217,.3);background:rgba(22,37,39,.88);color:#e4e8dc;font:10px var(--mono);cursor:pointer}
+.tablet-connect-button:hover,.tablet-connect-button.is-connected{border-color:#b9d2c2;color:#b9d2c2}
+.tablet-dialog{width:min(440px,calc(100vw - 32px));max-height:calc(100vh - 32px);padding:24px;border:1px solid rgba(220,232,217,.28);background:#162527;color:#e4e8dc;box-shadow:0 18px 70px #0009}
+.tablet-dialog::backdrop{background:rgba(7,14,16,.68);backdrop-filter:blur(4px)}
+.tablet-dialog-close{position:absolute;top:10px;right:10px}
+.tablet-dialog-close button{width:32px;height:32px;border:1px solid var(--line);background:transparent;color:var(--paper);font-size:22px;cursor:pointer}
+.tablet-dialog h2{margin:0 0 8px;font:600 24px var(--display)}
+.tablet-dialog-copy,.tablet-dialog-note{color:#a9b6ac;font-size:12px;line-height:1.6}
+.tablet-dialog>label,.tablet-pairing label{display:block;margin:14px 0 6px;color:#a9b6ac;font-size:11px}
+.tablet-connection-row{display:flex;gap:8px}
+.tablet-connection-row input,.tablet-pairing input{width:100%;min-width:0;height:40px;padding:0 10px;border:1px solid var(--line);background:#101b1d;color:var(--paper);font:11px var(--mono)}
+.tablet-connection-status{min-height:18px;color:#a9b6ac;font-size:11px}
+.tablet-connection-status.is-connected{color:#b9d2c2}
+.tablet-pairing{margin-top:14px;padding-top:12px;border-top:1px solid var(--line)}
+.tablet-pairing>p{margin:0 0 8px;color:#a9b6ac;font-size:12px}
+.tablet-pairing>p strong{color:#f2a283;font:600 18px var(--mono);letter-spacing:1px}
+.tablet-pairing input{margin-bottom:8px}
+.tablet-dialog-note{margin:16px 0 0;font-size:10px}
+body.play-mode .controller-nav{display:none}
+body.play-mode .tablet-connect-button{font-size:11px}

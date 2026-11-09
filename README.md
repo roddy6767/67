@@ -29,9 +29,16 @@ The Instruction A320 model is a high-resolution, approximately 97 MB GLB, so its
 
 ## 行動裝置控制器
 
-開啟 `controller.html`，按「啟用感測」並將平板平放校正中心。傾斜方向會即時輸出上下左右數值；長按加速按鈕時加速，放開即停止。鍵盤可按住 Enter 或空白鍵加速。
+在電腦開啟 Play，按「連接平板」。先部署並連接 WebSocket 接收端，遊戲會產生平板配對連結；在平板開啟該連結，按「啟用感測」並允許感測權限。平板傾斜控制俯仰和滾轉，長按「長按加速」按鈕增加推力。失去連線時遊戲會自動回到中立輸入。
 
-啟動範例 WebSocket 接收端：
+DeviceOrientation 僅可在 HTTPS 安全來源使用（localhost 除外），而 GitHub Pages 只託管前端靜態頁面，無法接收 WebSocket。此專案提供 Render WebSocket Blueprint（`render.yaml`），用於部署支援 WSS 的配對與即時轉送服務：
+
+1. 將最新專案推送至 GitHub。
+2. 在 Render 選擇 **New → Blueprint**，連結此 GitHub 儲存庫並部署 `render.yaml`。完成後複製 Render 提供的 `wss://...onrender.com` 網址。
+3. 在 GitHub 儲存庫的 **Settings → Pages** 將 Source 設為 **GitHub Actions**，等待 Actions 部署完成。
+4. 開啟 HTTPS 網站並選擇 Play；將 Render 的 `wss://` 網址貼入「WebSocket 伺服器」欄位並連線，再於平板開啟遊戲產生的配對連結。
+
+本機測試可啟動 WebSocket 接收端：
 
 ```sh
 npm install
@@ -39,6 +46,6 @@ npm run receiver
 npm run dev -- --host 0.0.0.0
 ```
 
-手機與執行接收端的電腦需連上同一個可信任的區域網路。在手機瀏覽器開啟 Vite 顯示的區域網路網址並進入 `/controller.html`，把 WebSocket 位址中的主機名稱改成接收端電腦的區域網路 IP（預設埠 `8081`），再按「連線」。範例接收端會在終端機印出每個控制封包。此範例未提供身分驗證或 TLS，只適合可信任的本機網路；上線部署應使用 `wss://`、驗證與來源限制。
+本機連線可在 Play 選擇「連接平板」，使用預設 `ws://<此電腦>:8081` 位址，並從遊戲產生的配對連結開啟平板控制器。區域網路的 HTTP 頁面可能無法啟用裝置感測；正式感測請使用 HTTPS 網頁和 WSS 接收端。範例使用隨機配對碼區分遊戲，沒有登入或帳號驗證，不應用於敏感或安全關鍵用途。
 
 DeviceOrientation 在部分瀏覽器需要 HTTPS 安全來源，iOS Safari 也會在啟用按鈕後要求感測器權限。方向與加速資料每秒最多傳送 20 次；此控制器是操作示範，不是飛行或工程設備。

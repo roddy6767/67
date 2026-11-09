@@ -5,9 +5,9 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta name="theme-color" content="#101b1d" />
   <title>自主學習67 — 飛行模擬</title>
-  <script type="module" crossorigin src="/assets/main-BLOiS-1S.js"></script>
+  <script type="module" crossorigin src="/assets/main-BgsmS1uq.js"></script>
   <link rel="modulepreload" crossorigin href="/assets/modulepreload-polyfill-B5Qt9EMX.js">
-  <link rel="stylesheet" crossorigin href="/assets/main-DPINeXrJ.css">
+  <link rel="stylesheet" crossorigin href="/assets/main-Dow1FP-b.css">
 </head>
 <body class="menu-active">
   <div class="app-shell">
@@ -22,6 +22,7 @@
       <div class="topbar-right">
         <div class="live-status"><span class="status-dot"></span><span id="connection-label">系統就緒</span></div>
         <a class="controller-nav" href="controller.html">手機控制器</a>
+        <button class="tablet-connect-button" id="tablet-connect-button" type="button">連接平板</button>
         <button class="home-icon-button" id="home-button" type="button" aria-label="回主頁" title="回主頁">⌂</button>
         <button class="mode-switch-button" id="mode-switch" aria-label="切換操作模式"><span id="mode-switch-label">Play</span><span aria-hidden="true">↗</span></button>
       </div>
@@ -116,6 +117,25 @@
       <button class="aoa-return" id="aoa-return" type="button" aria-label="返回上一章，也可按 Q">↩ 返回 <kbd>Q</kbd></button>
     </aside>
     <aside class="controls-help is-hidden" id="controls-help" aria-label="操作快捷鍵"></aside>
+    <dialog class="tablet-dialog" id="tablet-dialog" aria-labelledby="tablet-dialog-title">
+      <form method="dialog" class="tablet-dialog-close"><button type="submit" aria-label="關閉">×</button></form>
+      <p class="eyebrow">PLAY / TABLET INPUT</p>
+      <h2 id="tablet-dialog-title">連接平板控制</h2>
+      <p class="tablet-dialog-copy">先連上控制伺服器，再用平板開啟配對連結並啟用感測。</p>
+      <label for="game-websocket-url">WebSocket 伺服器（wss://）</label>
+      <div class="tablet-connection-row">
+        <input id="game-websocket-url" type="url" inputmode="url" placeholder="wss://你的伺服器.onrender.com" />
+        <button class="small-control" id="game-connect-button" type="button">連線</button>
+      </div>
+      <p class="tablet-connection-status" id="game-connection-status" role="status">尚未連線</p>
+      <div class="tablet-pairing is-hidden" id="tablet-pairing">
+        <p>配對碼：<strong id="tablet-pairing-code"></strong></p>
+        <label for="tablet-pairing-link">在平板開啟此網址</label>
+        <input id="tablet-pairing-link" type="url" readonly />
+        <button class="small-control" id="copy-tablet-link" type="button">複製平板連結</button>
+      </div>
+      <p class="tablet-dialog-note">平板頁面必須使用 HTTPS 才能啟用傾斜感測。第一次使用時，請在平板按「啟用感測」並允許權限。</p>
+    </dialog>
     <aside class="lesson-transport is-hidden" id="lesson-transport" aria-label="教學播放控制">
       <button type="button" id="lesson-replay" aria-label="重播本課">↺ 重播</button>
       <button type="button" id="lesson-pause" aria-label="暫停教學">Ⅱ 暫停</button>

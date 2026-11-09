@@ -7,8 +7,11 @@ const calibrateButton = $('#calibrate-button');
 const boostButton = $('#boost-button');
 const websocketUrl = $('#websocket-url');
 const tiltPad = $('#tilt-pad');
+const pageParams = new URLSearchParams(location.search);
+const room = pageParams.get('room') || 'local-demo';
 const sensorAvailable = 'DeviceOrientationEvent' in window && window.isSecureContext;
 let touchPointerId = null;
+let sensorTimeout;
 
 const state = {
   pitch: 0,
@@ -79,6 +82,7 @@ function setBoost() {
 
 function calibrate(event) {
   if (!Number.isFinite(event.beta) || !Number.isFinite(event.gamma)) return;
+  clearTimeout(sensorTimeout);
   state.baseline = { beta: event.beta, gamma: event.gamma };
   state.pitch = 0;
   state.roll = 0;
@@ -123,7 +127,10 @@ async function enableSensors() {
 
   window.addEventListener('deviceorientation', onOrientation);
   sensorButton.textContent = '感測已啟用';
-  sensorMessage.textContent = '平放平板校正中心';
+  sensorMessage.textContent = '等待感測器資料…請平放平板';
+  sensorTimeout = setTimeout(() => {
+    if (!state.baseline) sensorMessage.textContent = '沒有收到感測資料。請確認平板支援動作感測並已允許權限。';
+  }, 5000);
 }
 
 function setConnectionStatus(message, connected = false) {
@@ -163,9 +170,22 @@ function connect() {
 
   socket.addEventListener('open', () => {
     if (state.socket !== socket) return;
+    socket.send(JSON.stringify({ type: 'join', role: 'controller', room }));
     setConnectionStatus('已連線', true);
     connectButton.textContent = '中斷連線';
     sendControl();
+  });
+  socket.addEventListener('message', (event) => {
+    let message;
+    try {
+      message = JSON.parse(event.data);
+    } catch (error) {
+      sensorMessage.textContent = `收到無效的伺服器訊息：${error.message}`;
+      return;
+    }
+    if (message.type === 'peer' && message.role === 'game') {
+      setConnectionStatus(message.connected ? '已連接遊戲' : '等待遊戲連線', message.connected);
+    }
   });
   socket.addEventListener('error', () => {
     if (state.socket === socket) setConnectionStatus('連線錯誤，請確認接收端與網路');
@@ -178,7 +198,8 @@ function connect() {
   });
 }
 
-websocketUrl.value = `${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.hostname || 'localhost'}:8081`;
+websocketUrl.value = pageParams.get('ws')
+  || `${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.hostname || 'localhost'}:8081`;
 sensorButton.disabled = !sensorAvailable;
 if (!sensorAvailable) {
   sensorButton.disabled = true;
@@ -225,6 +246,7 @@ calibrateButton.addEventListener('click', () => {
   sendControl();
 });
 connectButton.addEventListener('click', connect);
+if (pageParams.has('ws') && pageParams.has('room')) connect();
 
 boostButton.addEventListener('pointerdown', (event) => {
   if (event.button !== undefined && event.button !== 0) return;
